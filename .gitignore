@@ -97,7 +97,9 @@ lib/generated_plugin_registrant.dart
 
 # Application specific - Log files
 logs/
+**/logs/
 *.log
+**/*.log
 
 # macOS
 **/macos/Flutter/GeneratedPluginRegistrant.swift
