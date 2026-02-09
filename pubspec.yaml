@@ -1,0 +1,26 @@
+name: flutter_monitor
+description: A Flutter application for monitoring barcode readings from PostgreSQL database
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  postgres: ^3.0.0
+  shared_preferences: ^2.2.2
+  window_manager: ^0.3.7
+  path_provider: ^2.1.1
+  intl: ^0.19.0
+  qr_flutter: ^4.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
