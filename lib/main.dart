@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/login_screen.dart';
 import 'services/logger_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // fecha en castellano de la pantalla del cliente («Miércoles, 18 de noviembre de 2026»)
+  await initializeDateFormatting('es');
   
   // 로거 초기화
   await LoggerService.instance.initialize();

@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../models/reading.dart';
 import '../services/database_service.dart';
 import '../services/logger_service.dart';
+import 'pantalla_cliente.dart';
+import 'pantalla_cliente_logica.dart';
 
 class MonitorScreen extends StatefulWidget {
   final DatabaseService databaseService;
@@ -29,9 +33,37 @@ class _MonitorScreenState extends State<MonitorScreen> {
   Timer? _pollTimer;
   bool _isLoading = false;
 
+  // [2026-11-18] pantalla del cliente: modo guardado + cuándo cambiaron las lecturas
+  ModoMonitor _modo = ModoMonitor.clasico;
+  DateTime? _cambioEn;
+  String _firma = '';
+
+  Future<void> _cargarModo() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _modo = modoDesdeTexto(prefs.getString(claveModoMonitor)));
+  }
+
+  Future<void> _alternarModo() async {
+    final n = alternar(_modo);
+    setState(() => _modo = n);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(claveModoMonitor, modoATexto(n));
+    await LoggerService.instance.info('Modo del monitor: ${modoATexto(n)}');
+  }
+
+  /// Marca el cambio (para ① escaneo → ② cobro) — se llama con cada lista nueva.
+  void _registrarCambio(List<Reading> rs) {
+    final f = firmaLecturas(rs);
+    if (f != _firma) {
+      _firma = f;
+      _cambioEn = DateTime.now();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _cargarModo();
     LoggerService.instance.info('MonitorScreen initialized for terminal ${widget.terminalNumber}');
     _loadInitialData();
     _startPolling();
@@ -47,6 +79,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
           await LoggerService.instance.info('Found ${initialReadings.length} initial readings');
           setState(() {
             _readings = initialReadings;
+            _registrarCambio(initialReadings);
           });
         } else {
           await LoggerService.instance.info('No initial readings found');
@@ -78,6 +111,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
         // 데이터가 실제로 변동되었는지 확인
         bool hasChanged = false;
         
+        // [2026-11-18] cantidad o total del mismo renglón también es un cambio (firmaLecturas)
+        if (firmaLecturas(newReadings) != _firma) {
+          hasChanged = true;
+        }
+
         // 개수 변경 확인
         if (_readings.length != newReadings.length) {
           hasChanged = true;
@@ -97,6 +135,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
         if (hasChanged) {
           setState(() {
             _readings = newReadings;
+            _registrarCambio(newReadings);
           });
         }
       }
@@ -251,6 +290,34 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // [2026-11-18] Alt+M (con la ventana del monitor enfocada) o doble clic: clásica ↔ cliente
+    return CallbackShortcuts(
+      bindings: {const SingleActivator(LogicalKeyboardKey.keyM, alt: true): _alternarModo},
+      child: Focus(
+        autofocus: true,
+        child: _modo == ModoMonitor.cliente ? _pantallaCliente() : _pantallaClasica(),
+      ),
+    );
+  }
+
+  Widget _pantallaCliente() {
+    return Scaffold(
+      body: GestureDetector(
+        onDoubleTap: _alternarModo,
+        child: PantallaCliente(
+          lecturas: _readings,
+          ultima: _latestReading ?? (_readings.isEmpty ? null : _readings.last),
+          total: _totalAmount,
+          cambioEn: _cambioEn,
+          enLetras: _numberToSpanishWords,
+          formatear: _formatDecimal,
+          titulo: widget.databaseName.toUpperCase(),
+        ),
+      ),
+    );
+  }
+
+  Widget _pantallaClasica() {
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -261,6 +328,11 @@ class _MonitorScreenState extends State<MonitorScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Pantalla del cliente (Alt+M)',
+            icon: const Icon(Icons.tv),
+            onPressed: _alternarModo,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () async {
