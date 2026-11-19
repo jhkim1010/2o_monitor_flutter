@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../models/reading.dart';
@@ -43,7 +44,29 @@ class _MonitorScreenState extends State<MonitorScreen> {
     if (mounted) setState(() => _modo = modoDesdeTexto(prefs.getString(claveModoMonitor)));
   }
 
+  // [2026-11-18 usuario] Alt+M GLOBAL (hotkey_manager): cambia el modo aunque el foco esté en ACE III.
+  //   Windows RegisterHotKey se «come» la tecla: con el monitor enfocado no llega también al
+  //   CallbackShortcuts local. Igual, dos pulsaciones en <300 ms cuentan como una (por si acaso).
+  final HotKey _teclaModo = HotKey(
+    key: PhysicalKeyboardKey.keyM,
+    modifiers: [HotKeyModifier.alt],
+    scope: HotKeyScope.system,
+  );
+  DateTime _ultimoCambio = DateTime.fromMillisecondsSinceEpoch(0);
+
+  Future<void> _registrarTeclaGlobal() async {
+    try {
+      await hotKeyManager.register(_teclaModo, keyDownHandler: (_) => _alternarModo());
+      await LoggerService.instance.info('Alt+M global registrado');
+    } catch (e) {
+      await LoggerService.instance.error('Alt+M global no se pudo registrar: $e');
+    }
+  }
+
   Future<void> _alternarModo() async {
+    final ahora = DateTime.now();
+    if (!mounted || ahora.difference(_ultimoCambio) < const Duration(milliseconds: 300)) return;
+    _ultimoCambio = ahora;
     final n = alternar(_modo);
     setState(() => _modo = n);
     final prefs = await SharedPreferences.getInstance();
@@ -64,6 +87,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   void initState() {
     super.initState();
     _cargarModo();
+    _registrarTeclaGlobal();
     LoggerService.instance.info('MonitorScreen initialized for terminal ${widget.terminalNumber}');
     _loadInitialData();
     _startPolling();
@@ -146,6 +170,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
   void dispose() {
     LoggerService.instance.info('MonitorScreen disposing, stopping polling');
     _pollTimer?.cancel();
+    hotKeyManager.unregister(_teclaModo);
     super.dispose();
   }
 
@@ -290,7 +315,7 @@ class _MonitorScreenState extends State<MonitorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // [2026-11-18] Alt+M (con la ventana del monitor enfocada) o doble clic: clásica ↔ cliente
+    // [2026-11-18] Alt+M (global — ver _teclaModo; este es el respaldo local) o doble clic: clásica ↔ cliente
     return CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.keyM, alt: true): _alternarModo},
       child: Focus(

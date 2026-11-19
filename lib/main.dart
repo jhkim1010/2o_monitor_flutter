@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
 import 'screens/login_screen.dart';
@@ -20,6 +21,9 @@ void main() async {
   // 윈도우 매니저 초기화
   await windowManager.ensureInitialized();
   await LoggerService.instance.debug('Window manager initialized');
+
+  // atajos globales (Alt+M del monitor): limpiar los que quedaron de un hot restart
+  await hotKeyManager.unregisterAll();
   
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1200, 800),
