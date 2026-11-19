@@ -170,7 +170,7 @@ ORDER BY id_reading;
 - 모드 두 개: **클래식**(위 4번의 반반 화면) ↔ **손님 화면**. 마지막 모드는 `shared_preferences`(`modo_monitor`)에 저장.
 - 전환: 모니터 창이 포커스일 때 **Alt+M**, 손님 화면에서 **더블클릭**, 클래식 화면 AppBar의 TV 버튼.
 - 손님 화면 (Ventago 웹 POS 의 Alt+Q 창과 같은 디자인):
-  - **① 스캔**: 최근 20초 안에 readings 가 바뀌면 — `id_reading = 0` 항목을 모달로(수량 × 코드, 품명, 단가, 소계) + 아래 띠에 Importe Final
+  - **① 스캔**: 최근 20초 안에 readings 가 바뀌면 — 왼쪽 전체 목록(새 항목 아래·강조, 넘치면 「▲ N más arriba」) + 오른쪽 `id_reading = 0` 항목(수량 × 코드, 품명, 단가, 소계, 사진 없음) + 아래 띠에 Importe Final (2026-11-18 목업 ①')
   - **② 결제**: 20초 동안 변화 없으면 — Importe Final 크게 + 스페인어 읽기 + QR
   - **③ 대기**: readings 가 비면 — 데이터베이스 이름, 날짜·시각(초 단위), QR
   - QR: `https://app.coolsistema.com`, 위 문구 **by Ventago** (클래식 화면의 WhatsApp QR 은 그대로)
